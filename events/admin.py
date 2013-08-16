@@ -2,26 +2,9 @@
 from django.contrib import admin
 from django.conf import settings
 from django.utils.translation import ungettext, ugettext_lazy as _
-from events.models import Event, EventDate, ImageGallery, VideoGallery
+from events.models import Event,  ImageGallery, VideoGallery
 from widgets import AdminImageWidget, AdminYoutubeWidget
 
-
-class EventDateInline(admin.TabularInline):
-    model = EventDate
-    fieldsets = (
-        (_('Dates and places for event'), {
-            'classes': ('collapse',),
-            'fields': ('date',
-                       'time',
-                       'country',
-                       'state',
-                       'city',
-                       'place',
-                       'status',
-                       'aditional_comments', )
-        }),
-    )
-    extra = 3
 
 
 class ImageGalleryInline(admin.TabularInline):
@@ -60,7 +43,7 @@ class EventAdmin(admin.ModelAdmin):
         js = (static_url+'js/tinymce/tinymce.min.js',
               static_url+'js/textarea-events.js')
 
-    inlines = [EventDateInline, ImageGalleryInline, VideoGalleryInline]
+    inlines = [ImageGalleryInline, VideoGalleryInline]
     list_display = ['user', 'title', 'creation_date', 'last_update', 'is_active']
     list_display_links = ['title']
     list_filter = ['is_active', 'site']

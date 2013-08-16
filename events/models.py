@@ -57,27 +57,27 @@ class EventManager(models.Manager):
         if not site:
             site = Site.objects.get_current()
         if not user:
-            return self.active(site=site, **kwargs).filter(eventdate__date__gte=date.today()).distinct()
+            return self.active(site=site, **kwargs).filter(date__gte=date.today()).distinct()
         else:
-            return self.active(user=user, site=site, **kwargs).filter(eventdate__date__gte=date.today()).distinct()
+            return self.active(user=user, site=site, **kwargs).filter(date__gte=date.today()).distinct()
 
     def get_past_due(self, user=None, site=None, **kwargs):
         """Returns a list with the past due events."""
         if not site:
             site = Site.objects.get_current()
         if not user:
-            return self.active(site=site, **kwargs).filter(eventdate__date__lt=date.today()).exclude(eventdate__date__gte=date.today()).distinct()
+            return self.active(site=site, **kwargs).filter(date__lt=date.today()).exclude(date__gte=date.today()).distinct()
         else:
-            return self.active(user=user, site=site, **kwargs).filter(eventdate__date__lt=date.today()).exclude(eventdate__date__gte=date.todat()).distinct()
+            return self.active(user=user, site=site, **kwargs).filter(date__lt=date.today()).exclude(date__gte=date.todat()).distinct()
 
     def get_today_events(self, user=None, site=None, **kwargs):
         """Returns a list with today events."""
         if not site:
             site = Site.objects.get_current()
         if not user:
-            return self.active(site=site, **kwargs).filter(eventdate__date__iexact=date.today()).distinct()
+            return self.active(site=site, **kwargs).filter(date__iexact=date.today()).distinct()
         else:
-            return self.active(user=user, site=site, **kwargs).filter(eventdate__date__iexact=date.today()).distinct()
+            return self.active(user=user, site=site, **kwargs).filter(date__iexact=date.today()).distinct()
 
     def get_by_date(self, date_event=None, user=None, site=None, **kwargs):
         """Returns a list whit events filtered by date."""
@@ -85,9 +85,9 @@ class EventManager(models.Manager):
             site = Site.objects.get_current()
 
         if not user:
-            return self.active(site=site, **kwargs).filter(eventdate__date=date_event).distinct()
+            return self.active(site=site, **kwargs).filter(date=date_event).distinct()
         else:
-            return self.active(user=user, site=site, **kwargs).filter(eventdate__date=date_event).distinct()
+            return self.active(user=user, site=site, **kwargs).filter(date=date_event).distinct()
 
     def get_by_month(self, month=0, user=None, site=None, **kwargs):
         """Returns a list of events filtered by Month."""
@@ -95,15 +95,15 @@ class EventManager(models.Manager):
             site = Site.objects.get_current()
         searched_month = month if month > 0 else 1
         if not user:
-            return self.active(site=site, **kwargs).filter(eventdate__date__month=searched_month).distinct()
+            return self.active(site=site, **kwargs).filter(date__month=searched_month).distinct()
         else:
-            return self.active(user=user, site=site, **kwargs).filter(eventdate__date__month=searched_month).distinct()
+            return self.active(user=user, site=site, **kwargs).filter(date__month=searched_month).distinct()
 
     def get_this_week(self, user=None, site=None, **kwargs):
         """Returns a list of events for this week.
-        
-          Take todays date. Subtract the number of days which already 
-          passed this week (this gets you 'last' monday). Add one week.  
+
+          Take todays date. Subtract the number of days which already
+          passed this week (this gets you 'last' monday). Add one week.
         """
         if not site:
             site = Site.objects.get_current()
@@ -112,19 +112,20 @@ class EventManager(models.Manager):
         print first_week_day
         last_week_day = today + timedelta(days=-today.weekday(), weeks=1)
         print last_week_day
-        
+
         if not user:
-            return self.active(site=site, **kwargs).filter(eventdate__date__range=(first_week_day, last_week_day)).distinct()
+            return self.active(site=site, **kwargs).filter(date__range=(first_week_day, last_week_day)).distinct()
         else:
-            return self.active(user=user, site=site, **kwargs).filter(eventdate__date__range=(first_week_day, last_week_day)).distinct()
+            return self.active(user=user, site=site, **kwargs).filter(date__range=(first_week_day, last_week_day)).distinct()
 
 
 class Event(models.Model):
     """Events Calendar."""
     site = models.ForeignKey(Site, verbose_name=_('Site'))
     user = models.ForeignKey(User, verbose_name=_('User'))
-    title = models.CharField(_('Title event'), max_length=150, blank=False)
-    slug = AutoSlugField(_('Slug'), max_length=150,
+    title = models.CharField(_('event title'), max_length=150, blank=False)
+    date = models.DateField(_('date'))
+    slug = AutoSlugField(_('slug'), max_length=150,
                          blank=False, unique=True,
                          help_text=_('This field is auto generated based on event title'),
                          populate_from='title')
@@ -132,109 +133,64 @@ class Event(models.Model):
     presentation_thumb = models.ImageField(_('Image presentation for events section'),
                                            upload_to='events/presentation-thumbs', max_length=150,
                                            help_text=_('You must define some standard zise for your events section'))
-    creation_date = models.DateTimeField(_('Creation date'), auto_now_add=True,
+    creation_date = models.DateTimeField(_('creation date'), auto_now_add=True,
                                          blank=True,
                                          null=True)
-    last_update = models.DateTimeField(_('Last Update'), auto_now=True,
+    last_update = models.DateTimeField(_('last Update'), auto_now=True,
                                        blank=True, null=True)
-    is_active = models.BooleanField(_('Is Active?'), default=True)
+    is_active = models.BooleanField(_('is Active?'), default=True)
     objects = EventManager()
 
     class Meta:
-        verbose_name = _('Event')
-        verbose_name_plural = _('Events Calendar')
+        verbose_name = _('event')
+        verbose_name_plural = _('events calendar')
         ordering = ['creation_date']
 
     def __unicode__(self):
-        return '%s' % (self.title)
+        return self.title
 
     @models.permalink
     def get_absolute_url(self):
-        return ('event', (), {
-            'slug': self.slug})
-
-    def get_summary_dates(self):
-        """Returns a summary of dates on this format: May (13, 20, 21)-Jun (1, 23, 30)."""
-        from itertools import groupby
-        event_dates = self.eventdate_set.all()
-        list_item_dates = []
-        for month, days in groupby(event_dates, lambda current_date: current_date.date.strftime("%B")):
-            item_date = "%s (%s)" % (month, ",".join(list([str(day.date.day) for day in days])))
-            list_item_dates.append(item_date)
-        return "-".join(list_item_dates)
-
-    def get_first_day(self):
-        return self.eventdate_set.all().order_by('date')[0].date
-
-    def get_last_day(self):
-        return self.eventdate_set.all().order_by('-date')[0].date
+        return ('event_detail', (), {
+            'slug': self.slug,
+            'year': self.date.year,
+            'month': unicode(self.date.month).zfill(2),
+            'day': unicode(self.date.day).zfill(2),
+        })
 
 
-class EventDate(models.Model):
-    """Event Date"""
-    CANCELLED = 'CANCELLED'
-    ACTIVE = 'ACTIVE'
-    SUSPENDED = 'SUSPENDED'
-    DATE_STATUS_CHOICES = (
-        (ACTIVE, _('Active')),
-        (SUSPENDED, _('Suspended')),
-        (CANCELLED, _('Cancelled')),
-    )
-
-    event = models.ForeignKey(Event, verbose_name=_('Event'))
-    date = models.DateField(_('Date'), blank=False, null=False)
-    time = models.TimeField(_('Time'), blank=True, null=True)
-    country = models.CharField(_('Country'), max_length=100, blank=True)
-    state = models.CharField(_('State'), max_length=100, blank=True)
-    city = models.CharField(_('City'), max_length=100, blank=True)
-    place = models.CharField(_('Place Event'), max_length=200, blank=True)
-    status = models.CharField(_('Status Event date'), max_length=10, blank=False,
-                              choices=DATE_STATUS_CHOICES, default=ACTIVE)
-    aditional_comments = models.CharField(_('Aditional comments'), max_length=250, blank=True)
-
-    class Meta:
-        verbose_name = _('Event Date')
-        verbose_name_plural = _('Dates and places for event')
-
-    def __unicode__(self):
-        return '%s-%s-%s' % (self.date, self.time, self.country)
-
-    @models.permalink
-    def get_absolute_url(self):
-        return ('event_date', (), {
-                'date': self.event_date, })
 
 
 class ImageGallery(models.Model):
     """Image gallery for Event."""
-    event = models.ForeignKey(Event, verbose_name=_('Event'))
-    image_item = models.ImageField(_('Image item'), upload_to='events/gallery', max_length=150)
-    description = models.CharField(_('Image description'), max_length=150, blank=True)
+    event = models.ForeignKey(Event, verbose_name=_('event'))
+    image_item = models.ImageField(_('image item'), upload_to='events/gallery', max_length=150)
+    description = models.CharField(_('image description'), max_length=150, blank=True)
 
     class Meta:
-        verbose_name = _('Image Event')
-        verbose_name_plural = _('Image Gallery for event')
+        verbose_name = _('event image')
+        verbose_name_plural = _('event images')
 
     def __unicode__(self):
         if self.description is not None:
-            return '%s' % self.description
+            return self.description
         else:
-            return '%s' % str(self.image_item)
+            return unicode(self.image_item)
 
 
 class VideoGallery(models.Model):
     """Video Gallery for Event"""
-    event = models.ForeignKey(Event, verbose_name=_('Event'))
-    video_item = models.CharField(_('Video Item'), max_length=400, blank=True)
-    description = models.CharField(_('Video description'), max_length=150,
+    event = models.ForeignKey(Event, verbose_name=_('event'))
+    video_item = models.CharField(_('video item'), max_length=400, blank=True)
+    description = models.CharField(_('video description'), max_length=150,
                                    blank=True)
 
     class Meta:
-        verbose_name = _('Video Event')
-        verbose_name_plural = _('Video Gallery for event')
+        verbose_name = _('event video')
+        verbose_name_plural = _('event videos')
 
     def __unicode__(self):
         if self.description is not None:
-            return '%s' % self.description
+            return  self.description
         else:
-            return '%s' % str(self.video_item)
+            return unicode(self.video_item)
