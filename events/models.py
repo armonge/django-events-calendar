@@ -131,6 +131,8 @@ class Event(models.Model):
                          populate_from='title')
     event_content = models.TextField(_('Event description'), blank=True)
     presentation_thumb = models.ImageField(_('Image presentation for events section'),
+                                            null=True,
+                                            blank=True,
                                            upload_to='events/presentation-thumbs', max_length=150,
                                            help_text=_('You must define some standard zise for your events section'))
     creation_date = models.DateTimeField(_('creation date'), auto_now_add=True,
